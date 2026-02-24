@@ -12,7 +12,8 @@ function App() {
   const { user } = useAuth();
   const [view, setView] = useState("home");
 
-  const accountLabel = user?.displayName || user?.email || "Account";
+  const accountLabel =
+    user?.displayName || user?.email?.split("@")[0] || "Account";
 
   useEffect(() => {
     if (!user) return;
