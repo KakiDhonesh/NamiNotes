@@ -60,7 +60,7 @@ You can refresh one item or all items from Dashboard using TMDB status refresh b
 
 In Firebase Console -> Firestore Database -> Rules:
 
-You can copy from `frontend/firestore.rules`.
+You can copy from `backend/firestore/firestore.rules`.
 
 ```txt
 rules_version = '2';
