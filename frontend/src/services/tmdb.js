@@ -102,6 +102,20 @@ function toDateValue(input) {
 
 function getMovieTrackingState(movie, collection) {
   const now = new Date();
+  const movieReleaseAt = toDateValue(movie?.release_date);
+
+  if (movieReleaseAt && movieReleaseAt > now) {
+    return {
+      status: "Waiting for Next Part",
+      nextPart: {
+        id: movie.id,
+        title: movie.title,
+        airDate: movie.release_date || "",
+      },
+      hasUpcomingPart: true,
+    };
+  }
+
   const parts = (collection?.parts || [])
     .filter((part) => part.id !== movie.id)
     .map((part) => ({

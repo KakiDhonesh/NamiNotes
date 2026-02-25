@@ -201,16 +201,6 @@ export function useMovies(userId) {
             snapshot.nextPart?.airDate || snapshot.nextEpisode?.airDate;
           const releaseAt = toDateOrNull(releaseDate);
           const daysUntil = releaseAt ? getDaysUntil(releaseAt) : null;
-
-          if (
-            !snapshot.hasUpcomingPart ||
-            !releaseAt ||
-            daysUntil <= 0 ||
-            daysUntil > UPCOMING_WINDOW_DAYS
-          ) {
-            await deleteDoc(ref);
-            return;
-          }
           await updateDoc(ref, {
             status: snapshot.status || movie.status || "Watching",
             nextEpisode: snapshot.nextEpisode || null,

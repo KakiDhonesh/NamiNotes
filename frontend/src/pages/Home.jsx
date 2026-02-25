@@ -93,10 +93,30 @@ export default function Home() {
   const { movies, loading } = useMovies(user?.uid);
 
   const recentUpdates = useMemo(() => {
-    return movies
+    const upcoming = movies
       .filter((m) => m.status !== "Completed")
-      .filter(isUpcomingMovie)
-      .slice(0, 10);
+      .filter(isUpcomingMovie);
+
+    const seen = new Map();
+    const filtered = upcoming.filter((movie) => {
+      const nextPartTitle = movie?.nextPart?.title;
+      const nextEpisodeName = movie?.nextEpisode?.name;
+      const key = nextPartTitle
+        ? `movie-${nextPartTitle}`
+        : nextEpisodeName
+        ? `episode-${nextEpisodeName}`
+        : `title-${movie.tmdbId || movie.title}`;
+      const partNumber = extractPartNumber(movie.title);
+
+      const existing = seen.get(key);
+      if (!existing || partNumber > existing.partNumber) {
+        seen.set(key, { partNumber });
+        return true;
+      }
+      return false;
+    });
+
+    return filtered.slice(0, 10);
   }, [movies]);
 
   const favorites = useMemo(() => {
