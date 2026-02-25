@@ -51,6 +51,68 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  position: relative;
+}
+
+.account-dropdown {
+  position: relative;
+}
+
+.nav-user-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.nav-user-btn:hover {
+  color: var(--text);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  background: rgba(9, 16, 30, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  min-width: 140px;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 13px;
+  transition: 160ms ease;
+}
+
+.dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.dropdown-item.danger {
+  color: var(--danger);
+}
+
+.dropdown-item.danger:hover {
+  background: rgba(255, 107, 107, 0.12);
 }
 
 .nav-user {
@@ -169,11 +231,7 @@ h4 {
 }
 
 .panel {
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: rgba(9, 16, 30, 0.92);
-  padding: 16px;
-  box-shadow: var(--shadow-soft);
+  padding: 16px 0;
 }
 
 .panel-head {
@@ -201,10 +259,7 @@ h4 {
 .reminder-card {
   display: flex;
   gap: 10px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.02);
-  padding: 10px;
+  padding: 12px 0;
 }
 
 .reminder-poster {
@@ -231,10 +286,7 @@ h4 {
 }
 
 .movie-card {
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.02);
-  padding: 12px;
+  padding: 16px 0;
   display: grid;
   gap: 10px;
 }

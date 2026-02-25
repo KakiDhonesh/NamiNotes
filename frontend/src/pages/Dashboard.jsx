@@ -1,9 +1,33 @@
-import { useEffect, useMemo, useRef } from "react";
-import { signOut } from "firebase/auth";
-import { auth } from "../services/firebase";
+import { useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { TRACKING_STATUSES, useMovies } from "../hooks/useMovies";
 import { MediaSearchForm } from "../components/MediaSearchForm";
+
+const UPCOMING_WINDOW_DAYS = 30;
+
+const toDateOrNull = (input) => {
+  if (!input) return null;
+  const date = new Date(input);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getDaysUntil = (date) => {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+  return Math.ceil((target - now) / (1000 * 60 * 60 * 24));
+};
+
+const isUpcomingMovie = (movie) => {
+  const nextPartDate = toDateOrNull(movie?.nextPart?.airDate);
+  const nextEpisodeDate = toDateOrNull(movie?.nextEpisode?.airDate);
+  const releaseDate = nextPartDate || nextEpisodeDate;
+  if (!releaseDate) return false;
+
+  const daysUntil = getDaysUntil(releaseDate);
+  return daysUntil > 0 && daysUntil <= UPCOMING_WINDOW_DAYS;
+};
 
 export default function Dashboard() {
   const hasAutoSynced = useRef(false);
@@ -18,11 +42,6 @@ export default function Dashboard() {
     syncMovieFromTmdb,
     syncAllMoviesFromTmdb,
   } = useMovies(user?.uid);
-
-  const displayName = useMemo(
-    () => user?.displayName || user?.email || "Friend",
-    [user]
-  );
 
   const handleAddMedia = async (media) => {
     try {
@@ -71,10 +90,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut(auth);
-  };
-
   const handleSyncOne = async (movie) => {
     try {
       await syncMovieFromTmdb(movie);
@@ -110,17 +125,6 @@ export default function Dashboard() {
             Track your watched movies, shows, and anime. Get alerts on new
             episodes, releases, and what to watch next.
           </p>
-          <div className="user-chip">
-            <span>{displayName}</span>
-            <button className="ghost" onClick={handleSignOut}>
-              Sign out
-            </button>
-          </div>
-        </div>
-        <div className="stat-card">
-          <p className="stat-label">Currently tracking</p>
-          <p className="stat-value">{movies.length}</p>
-          <p className="stat-sub">Watching or planning</p>
         </div>
       </header>
 
@@ -153,9 +157,9 @@ export default function Dashboard() {
             <p className="muted">Loading...</p>
           ) : movies.length === 0 ? (
             <div className="empty">
-              <p>No titles tracked yet.</p>
+              <p>No tracked titles yet.</p>
               <p className="muted">
-                Search above to add movies, shows, or anime.
+                Add any title. Upcoming releases within 30 days are highlighted.
               </p>
             </div>
           ) : (
@@ -184,6 +188,9 @@ export default function Dashboard() {
                         >
                           {movie.status || "Watching"}
                         </span>
+                        {isUpcomingMovie(movie) && (
+                          <span className="pill">Upcoming (30 days)</span>
+                        )}
                       </div>
                     </div>
                   </div>

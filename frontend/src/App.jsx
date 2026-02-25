@@ -11,6 +11,7 @@ import "./App.css";
 function App() {
   const { user } = useAuth();
   const [view, setView] = useState("home");
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
 
   const accountLabel =
     user?.displayName || user?.email?.split("@")[0] || "Account";
@@ -47,10 +48,21 @@ function App() {
               </button>
             </div>
             <div className="nav-account">
-              <span className="nav-user">{accountLabel}</span>
-              <button className="ghost" onClick={handleLogout}>
-                Logout
-              </button>
+              <div className="account-dropdown">
+                <button
+                  className="nav-user-btn"
+                  onClick={() => setShowAccountMenu((prev) => !prev)}
+                >
+                  {accountLabel}
+                </button>
+                {showAccountMenu && (
+                  <div className="dropdown-menu">
+                    <button className="dropdown-item danger" onClick={handleLogout}>
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
