@@ -22,6 +22,50 @@ export function getLanguageLabel(languageCode) {
   return LANGUAGE_LABELS[languageCode] || languageCode.toUpperCase();
 }
 
+const LANGUAGE_LOCALES = {
+  en: "en-US",
+  ja: "ja-JP",
+  ko: "ko-KR",
+  hi: "hi-IN",
+  ta: "ta-IN",
+  te: "te-IN",
+  ml: "ml-IN",
+  es: "es-ES",
+  fr: "fr-FR",
+  de: "de-DE",
+};
+
+const LANGUAGE_REGIONS = {
+  hi: "IN",
+  ta: "IN",
+  te: "IN",
+  ml: "IN",
+};
+
+export function getSearchOptions(languageCode) {
+  if (!languageCode || languageCode === "all") return {};
+  return {
+    language: LANGUAGE_LOCALES[languageCode] || languageCode,
+    region: LANGUAGE_REGIONS[languageCode],
+  };
+}
+
+// TMDB sometimes returns placeholder/rumored titles without language or dates.
+// We drop entries that are missing a valid release/air date or are still in the future.
+export function filterValidResults(results = []) {
+  const now = new Date();
+
+  return results.filter((result) => {
+    const releaseDate = result.release_date || result.first_air_date;
+    const parsedDate = toDateValue(releaseDate);
+    if (!parsedDate) return false;
+    if (parsedDate > now) return false;
+
+    const hasTitle = Boolean(result.title || result.name);
+    return hasTitle;
+  });
+}
+
 function isAnimeResult(result) {
   const genreIds = result.genre_ids || [];
   const isAnimation = genreIds.includes(16);
@@ -29,15 +73,19 @@ function isAnimeResult(result) {
   return isAnimation && isJapanese;
 }
 
-export async function searchMedia(query, mediaType = "multi") {
+export async function searchMedia(query, mediaType = "multi", options = {}) {
   if (!query.trim()) return [];
 
   try {
-    const response = await fetch(
-      `${TMDB_BASE_URL}/search/${mediaType}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(
-        query
-      )}&page=1`
-    );
+    const params = new URLSearchParams({
+      api_key: TMDB_API_KEY,
+      query: query,
+      page: "1",
+    });
+    if (options.language) params.set("language", options.language);
+    if (options.region) params.set("region", options.region);
+
+    const response = await fetch(`${TMDB_BASE_URL}/search/${mediaType}?${params.toString()}`);
 
     if (!response.ok) throw new Error("Search failed");
 
@@ -233,15 +281,20 @@ export function formatMediaResult(result) {
   const isShow = result.media_type === "tv" || result.first_air_date;
   const isAnime = isAnimeResult(result);
   const releaseDate = result.release_date || result.first_air_date || "";
+  const parsedRelease = toDateValue(releaseDate);
   const title = result.name || result.title || "";
+  const originalTitle = result.original_name || result.original_title || "";
   const languageCode = result.original_language || "";
+  const releaseLabel = releaseDate || "TBA";
+  const yearLabel = parsedRelease ? String(parsedRelease.getFullYear()) : "TBA";
 
   return {
     id: result.id,
     title,
+    originalTitle,
     type: isAnime ? "Anime" : isShow ? "TV / Show" : "Movie",
     contentType: isAnime ? "anime" : isShow ? "tv" : "movie",
-    year: releaseDate.split("-")[0],
+    year: yearLabel,
     poster: result.poster_path
       ? `https://image.tmdb.org/t/p/w500${result.poster_path}`
       : null,
@@ -249,7 +302,7 @@ export function formatMediaResult(result) {
       ? `https://image.tmdb.org/t/p/w1280${result.backdrop_path}`
       : null,
     overview: result.overview || "",
-    releaseDate,
+    releaseDate: releaseLabel,
     mediaType: isShow ? "tv" : "movie",
     language: languageCode,
     languageLabel: getLanguageLabel(languageCode),

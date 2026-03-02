@@ -1,5 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
-import { searchMedia, formatMediaResult, getShowDetails } from "../services/tmdb";
+import {
+  searchMedia,
+  formatMediaResult,
+  getShowDetails,
+  getSearchOptions,
+  filterValidResults,
+} from "../services/tmdb";
 
 export function useMediaSearch() {
   const [query, setQuery] = useState("");
@@ -19,18 +25,10 @@ export function useMediaSearch() {
       try {
         setLoading(true);
         setError(null);
-        const data = await searchMedia(searchTerm);
-        const formatted = data
-          .map(formatMediaResult)
-          .filter((r) => r.title)
-          .filter((r) => {
-            if (categoryFilter === "all") return true;
-            return r.contentType === categoryFilter;
-          })
-          .filter((r) => {
-            if (languageFilter === "all") return true;
-            return r.language === languageFilter;
-          });
+        const options = getSearchOptions(languageFilter);
+        const data = await searchMedia(searchTerm, "multi", options);
+        const filtered = filterValidResults(data);
+        const formatted = filtered.map(formatMediaResult);
         setResults(formatted);
       } catch (err) {
         setError(err.message);
