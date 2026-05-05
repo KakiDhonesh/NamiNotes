@@ -1041,6 +1041,155 @@ button.ghost.danger {
   align-items: center;
 }
 
+/* Release Reminders Styles */
+.reminders-container {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.reminder-card {
+  display: grid;
+  grid-template-columns: minmax(100px, 140px) 1fr;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(9, 16, 30, 0.4);
+  border: 1px solid var(--border);
+  align-items: flex-start;
+  box-sizing: border-box;
+}
+
+.reminder-image {
+  width: 100%;
+  max-width: 100%;
+  min-width: 100px;
+  aspect-ratio: 2 / 3;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #111;
+}
+
+.reminder-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reminder-content {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+}
+
+.reminder-label {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.reminder-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.reminder-episode {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.reminder-badge {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  width: fit-content;
+  margin: 4px 0;
+}
+
+.badge-now {
+  background: rgba(255, 209, 71, 0.2);
+  color: #ffd147;
+  border: 1px solid rgba(255, 209, 71, 0.4);
+}
+
+.badge-soon {
+  background: rgba(71, 184, 255, 0.15);
+  color: #47b8ff;
+  border: 1px solid rgba(71, 184, 255, 0.3);
+}
+
+.badge-upcoming {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.badge-released {
+  background: rgba(95, 215, 154, 0.15);
+  color: #5fd79a;
+  border: 1px solid rgba(95, 215, 154, 0.3);
+}
+
+.reminder-date {
+  margin: 4px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.reminder-description {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.reminders-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+@media (max-width: 640px) {
+  .reminder-card {
+    grid-template-columns: minmax(80px, 120px) 1fr;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .reminder-title {
+    font-size: 16px;
+  }
+
+  .reminder-episode {
+    font-size: 12px;
+  }
+
+  .reminder-description {
+    -webkit-line-clamp: 2;
+    font-size: 12px;
+  }
+}
+
 @media (max-width: 980px) {
   .carousel-slide {
     padding: 14px;

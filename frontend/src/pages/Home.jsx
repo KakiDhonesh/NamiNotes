@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useMovies } from "../hooks/useMovies";
 import { Slideshow } from "../components/Slideshow";
+import { ReleaseReminders } from "../components/ReleaseReminders";
 
 const RELEASE_REMINDER_WINDOW_DAYS = 30;
 
@@ -217,30 +218,7 @@ export default function Home() {
               <p className="eyebrow">Currently watching</p>
               <h2>Watching & waiting</h2>
             </div>
-            <div className="watching-list">
-              {watching.slice(0, 5).map((item) => (
-                <div key={item.id} className="watching-item">
-                  <div>
-                    <h4>{item.title}</h4>
-                    {item.nextEpisode && (
-                      <p className="tiny muted">
-                        Next: S{item.nextEpisode.seasonNumber}E
-                        {item.nextEpisode.episodeNumber} • {item.nextEpisode.airDate}
-                      </p>
-                    )}
-                    {item.nextPart && (
-                      <p className="tiny muted">
-                        Next part: {item.nextPart.title}
-                        {item.nextPart.airDate ? ` • ${item.nextPart.airDate}` : ""}
-                      </p>
-                    )}
-                  </div>
-                  {item.rating && item.rating > 0 && (
-                    <span className="rating">★ {item.rating.toFixed(1)}</span>
-                  )}
-                </div>
-              ))}
-            </div>
+            <ReleaseReminders items={watching.slice(0, 10)} />
           </section>
         )}
 
@@ -250,19 +228,7 @@ export default function Home() {
               <p className="eyebrow">Finished titles</p>
               <h2>Completed</h2>
             </div>
-            <div className="watching-list">
-              {completed.slice(0, 5).map((item) => (
-                <div key={item.id} className="watching-item">
-                  <div>
-                    <h4>{item.title}</h4>
-                    <p className="tiny muted">Marked completed from TMDB status</p>
-                  </div>
-                  {item.rating && item.rating > 0 && (
-                    <span className="rating">★ {item.rating.toFixed(1)}</span>
-                  )}
-                </div>
-              ))}
-            </div>
+            <ReleaseReminders items={completed.slice(0, 10)} />
           </section>
         )}
 
