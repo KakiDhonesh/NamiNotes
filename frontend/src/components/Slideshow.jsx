@@ -1,30 +1,19 @@
 import { useState, useEffect } from "react";
 
-export function Slideshow({ items }) {
+export function Slideshow({ items = [] }) {
   const [current, setCurrent] = useState(0);
 
   useEffect(() => {
-    if (!items || items.length <= 1) return;
+    if (!items.length) return;
 
-    const timer = setInterval(() => {
+    const id = setInterval(() => {
       setCurrent((prev) => (prev + 1) % items.length);
     }, 5000);
 
-    return () => clearInterval(timer);
-  }, [items]);
+    return () => clearInterval(id);
+  }, [items.length]);
 
-  useEffect(() => {
-    if (!items?.length) {
-      setCurrent(0);
-      return;
-    }
-
-    if (current >= items.length) {
-      setCurrent(0);
-    }
-  }, [items, current]);
-
-  if (!items || items.length === 0) {
+  if (!items.length) {
     return (
       <div className="slideshow-empty">
         <p>No updates yet. Add titles to see them here!</p>
@@ -32,8 +21,7 @@ export function Slideshow({ items }) {
     );
   }
 
-  const slide = items[current];
-  const slideImage = slide.backdrop || slide.poster;
+  const slideImage = (item) => item.backdrop || item.poster;
 
   const next = () => {
     setCurrent((prev) => (prev + 1) % items.length);
@@ -44,58 +32,62 @@ export function Slideshow({ items }) {
   };
 
   return (
-    <div className="slideshow">
-      <div className="slide">
-        {slideImage && (
-          <img src={slideImage} alt={slide.title} className="slide-bg" />
-        )}
-        <div className="slide-overlay" />
-        <div className="slide-content">
-          <div>
-            <p className="slide-category">{slide.category}</p>
-            <h2 className="slide-title">{slide.title}</h2>
-            <div className="slide-meta">
-              {slide.rating && slide.rating > 0 && (
-                <span className="slide-rating">★ {slide.rating.toFixed(1)}/10</span>
-              )}
-              {slide.releaseLabel && (
-                <span className="slide-next">{slide.releaseLabel}</span>
-              )}
-              {slide.nextEpisode && (
-                <span className="slide-next">
-                  Next: S{slide.nextEpisode.seasonNumber}E
-                  {slide.nextEpisode.episodeNumber} • {slide.nextEpisode.airDate}
-                </span>
-              )}
-              {slide.nextPart && (
-                <span className="slide-next">
-                  Next: {slide.nextPart.title}
-                  {slide.nextPart.airDate ? ` • ${slide.nextPart.airDate}` : ""}
-                </span>
-              )}
+    <div className="slideshow carousel-container">
+      <div className="carousel-viewport">
+        <div
+          className="carousel-track"
+          style={{ transform: `translateX(-${current * 100}%)` }}
+        >
+          {items.map((item) => (
+            <div key={item.id} className="carousel-slide">
+              <div className="movie-card">
+                <div className="movie-card-image">
+                  {slideImage(item) && (
+                    <img
+                      src={slideImage(item)}
+                      alt={item.title}
+                      className="movie-img"
+                    />
+                  )}
+                </div>
+
+                <div className="movie-card-content">
+                  <p className="slide-category">{item.category}</p>
+                  <h3 className="slide-title">{item.title}</h3>
+
+                  <div className="slide-meta">
+                    {item.rating && item.rating > 0 && (
+                      <span className="slide-rating">★ {item.rating.toFixed(1)}/10</span>
+                    )}
+                    {item.releaseLabel && (
+                      <span className="slide-next">{item.releaseLabel}</span>
+                    )}
+                  </div>
+
+                  <p className="slide-overview">{item.overview}</p>
+                </div>
+
+                {item.isFavorite && <div className="fav-badge">♥ Favorite</div>}
+              </div>
             </div>
-            <p className="slide-overview">{slide.overview}</p>
-          </div>
-          {slide.isFavorite && <div className="fav-badge">♥ Favorite</div>}
+          ))}
         </div>
       </div>
 
-      <div className="slideshow-controls">
-        <button onClick={prev} className="slide-btn prev">
-          ‹
-        </button>
+      <div className="slideshow-controls carousel-footer">
+        <button onClick={prev} className="slide-btn prev">‹</button>
+
         <div className="slide-dots">
-          {items.map((_, idx) => (
+          {items.map((_, index) => (
             <button
-              key={idx}
-              className={`dot ${idx === current ? "active" : ""}`}
-              onClick={() => setCurrent(idx)}
+              key={index}
+              className={`dot ${index === current ? "active" : ""}`}
+              onClick={() => setCurrent(index)}
             />
           ))}
         </div>
-        <button onClick={next} className="slide-btn next">
-          ›
-        </button>
+
+        <button onClick={next} className="slide-btn next">›</button>
       </div>
     </div>
   );

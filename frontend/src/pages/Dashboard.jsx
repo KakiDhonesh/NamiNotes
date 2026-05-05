@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { TRACKING_STATUSES, useMovies } from "../hooks/useMovies";
 import { MediaSearchForm } from "../components/MediaSearchForm";
@@ -19,6 +19,22 @@ const getDaysUntil = (date) => {
   return Math.ceil((target - now) / (1000 * 60 * 60 * 24));
 };
 
+const MEDIA_SECTION_ORDER = ["anime", "movie", "tv"];
+
+const MEDIA_SECTION_LABELS = {
+  anime: "Anime",
+  movie: "Movies",
+  tv: "Series",
+};
+
+const normalizeMediaSection = (movie) => {
+  const value = (movie?.contentType || movie?.mediaType || "movie").toLowerCase();
+
+  if (value === "anime") return "anime";
+  if (value === "tv" || value === "show" || value === "series") return "tv";
+  return "movie";
+};
+
 const isUpcomingMovie = (movie) => {
   const nextPartDate = toDateOrNull(movie?.nextPart?.airDate);
   const nextEpisodeDate = toDateOrNull(movie?.nextEpisode?.airDate);
@@ -31,6 +47,7 @@ const isUpcomingMovie = (movie) => {
 
 export default function Dashboard() {
   const hasAutoSynced = useRef(false);
+  const [selectedMovie, setSelectedMovie] = useState(null);
   const { user } = useAuth();
   const {
     movies,
@@ -115,6 +132,33 @@ export default function Dashboard() {
     });
   }, [loading, movies.length, syncAllMoviesFromTmdb]);
 
+  const detailMovie = useMemo(() => {
+    if (!selectedMovie) return null;
+
+    const releaseDate =
+      selectedMovie.nextPart?.airDate ||
+      selectedMovie.nextEpisode?.airDate ||
+      selectedMovie.releaseDate ||
+      "TBA";
+
+    return {
+      ...selectedMovie,
+      releaseDate,
+      detailSummary: selectedMovie.overview || "Story summary not available yet.",
+    };
+  }, [selectedMovie]);
+
+  const sectionedMovies = useMemo(() => {
+    return MEDIA_SECTION_ORDER.reduce((accumulator, section) => {
+      accumulator[section] = movies.filter((movie) => normalizeMediaSection(movie) === section);
+      return accumulator;
+    }, {});
+  }, [movies]);
+
+  const hasSectionedMovies = MEDIA_SECTION_ORDER.some((section) => sectionedMovies[section].length > 0);
+
+  const closeDetails = () => setSelectedMovie(null);
+
   return (
     <div className="app-shell">
       <header className="app-hero">
@@ -162,112 +206,115 @@ export default function Dashboard() {
                 Add any title. Upcoming releases within 30 days are highlighted.
               </p>
             </div>
-          ) : (
-            <div className="movie-list">
-              {movies.map((movie) => (
-                <article key={movie.id} className="movie-card">
-                  <div className="card-header">
-                    {movie.poster && (
-                      <img src={movie.poster} alt={movie.title} className="poster" />
-                    )}
-                    <div className="card-info">
+          ) : hasSectionedMovies ? (
+            <div className="watchlist-sections">
+              {MEDIA_SECTION_ORDER.map((section) => {
+                const sectionMovies = sectionedMovies[section];
+
+                if (!sectionMovies.length) return null;
+
+                return (
+                  <section key={section} className="watchlist-section">
+                    <div className="section-header watchlist-section-header">
                       <div>
-                        <p className="eyebrow">
-                          {movie.category || "Title"}
-                        </p>
-                        <h3>{movie.title}</h3>
-                        {movie.languageLabel && (
-                          <p className="tiny muted">{movie.languageLabel}</p>
-                        )}
+                        <p className="eyebrow">{MEDIA_SECTION_LABELS[section]}</p>
+                        <h3>{sectionMovies.length} title{sectionMovies.length !== 1 ? "s" : ""}</h3>
                       </div>
-                      <div className="tag-row">
-                        <span
-                          className={`pill status ${movie.status
-                            ?.toLowerCase()
-                            .replace(/\s+/g, "-")}`}
+                      <p className="muted">
+                        {section === "anime"
+                          ? "Japanese animation and anime releases"
+                          : section === "movie"
+                            ? "Films and movie collections"
+                            : "TV shows and ongoing series"}
+                      </p>
+                    </div>
+
+                    <div className="movie-grid">
+                      {sectionMovies.map((movie) => (
+                        <article
+                          key={movie.id}
+                          className="movie-card clickable-card"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setSelectedMovie(movie)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              setSelectedMovie(movie);
+                            }
+                          }}
                         >
-                          {movie.status || "Watching"}
-                        </span>
-                        {isUpcomingMovie(movie) && (
-                          <span className="pill">Upcoming (30 days)</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {movie.nextEpisode && (
-                    <div className="next-episode">
-                      <p className="tiny">
-                        <strong>Next ep:</strong> {movie.nextEpisode.name}
-                      </p>
-                      <p className="tiny muted">
-                        S{movie.nextEpisode.seasonNumber}E
-                        {movie.nextEpisode.episodeNumber} •{" "}
-                        {movie.nextEpisode.airDate}
-                      </p>
-                    </div>
-                  )}
-
-                  {movie.nextPart && (
-                    <div className="next-episode">
-                      <p className="tiny">
-                        <strong>Next part:</strong> {movie.nextPart.title}
-                      </p>
-                      {movie.nextPart.airDate && (
-                        <p className="tiny muted">Release: {movie.nextPart.airDate}</p>
-                      )}
-                    </div>
-                  )}
-
-                  {movie.overview && (
-                    <p className="muted">{movie.overview.substring(0, 120)}...</p>
-                  )}
-
-                  <div className="card-footer">
-                    {movie.rating > 0 && (
-                      <span className="rating">★ {movie.rating.toFixed(1)}</span>
-                    )}
-                    <button
-                      type="button"
-                      className={`heart ${movie.isFavorite ? "active" : ""}`}
-                      onClick={() =>
-                        handleToggleFavorite(movie.id, movie.isFavorite)
-                      }
-                    >
-                      {movie.isFavorite ? "♥" : "♡"}
-                    </button>
-                  </div>
-
-                  <div className="card-actions">
-                    <div className="status-row">
-                      {TRACKING_STATUSES.map((st) => (
-                        <button
-                          key={st}
-                          type="button"
-                          className={
-                            st === movie.status ? "chip active" : "chip"
-                          }
-                          onClick={() => handleStatusChange(movie.id, st)}
-                        >
-                          {st}
-                        </button>
+                          <div className="card-poster-shell">
+                            {movie.poster ? (
+                              <img src={movie.poster} alt={movie.title} className="card-poster" />
+                            ) : (
+                              <div className="card-poster placeholder-poster">
+                                <span>No poster</span>
+                              </div>
+                            )}
+                            <div className="card-poster-gradient" />
+                            <div className="card-badges">
+                              <span
+                                className={`pill status ${movie.status
+                                  ?.toLowerCase()
+                                  .replace(/\s+/g, "-")}`}
+                              >
+                                {movie.status || "Watching"}
+                              </span>
+                              {isUpcomingMovie(movie) && <span className="pill">Upcoming</span>}
+                            </div>
+                            <div className="card-poster-copy">
+                              <p className="eyebrow">{movie.category || MEDIA_SECTION_LABELS[section]}</p>
+                              <h3>{movie.title}</h3>
+                              <p className="tiny muted">Click for details</p>
+                            </div>
+                          </div>
+                        </article>
                       ))}
                     </div>
-                    <div className="end-actions">
-                      <button
-                        type="button"
-                        className="ghost"
-                        onClick={() => handleSyncOne(movie)}
+                  </section>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="movie-grid">
+              {movies.map((movie) => (
+                <article
+                  key={movie.id}
+                  className="movie-card clickable-card"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedMovie(movie)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedMovie(movie);
+                    }
+                  }}
+                >
+                  <div className="card-poster-shell">
+                    {movie.poster ? (
+                      <img src={movie.poster} alt={movie.title} className="card-poster" />
+                    ) : (
+                      <div className="card-poster placeholder-poster">
+                        <span>No poster</span>
+                      </div>
+                    )}
+                    <div className="card-poster-gradient" />
+                    <div className="card-badges">
+                      <span
+                        className={`pill status ${movie.status
+                          ?.toLowerCase()
+                          .replace(/\s+/g, "-")}`}
                       >
-                        Refresh
-                      </button>
-                      <button
-                        type="button"
-                        className="ghost danger"
-                        onClick={() => handleDelete(movie.id)}
-                      >
-                        Remove
-                      </button>
+                        {movie.status || "Watching"}
+                      </span>
+                      {isUpcomingMovie(movie) && <span className="pill">Upcoming</span>}
+                    </div>
+                    <div className="card-poster-copy">
+                      <p className="eyebrow">{movie.category || "Title"}</p>
+                      <h3>{movie.title}</h3>
+                      <p className="tiny muted">Click for details</p>
                     </div>
                   </div>
                 </article>
@@ -276,6 +323,90 @@ export default function Dashboard() {
           )}
         </section>
       </main>
+
+      {detailMovie && (
+        <div className="movie-modal-backdrop" onClick={closeDetails} role="presentation">
+          <div
+            className="movie-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${detailMovie.title} details`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button type="button" className="modal-close" onClick={closeDetails} aria-label="Close details">
+              ×
+            </button>
+            <div className="movie-modal-body">
+              {detailMovie.poster && (
+                <img src={detailMovie.poster} alt={detailMovie.title} className="movie-modal-poster" />
+              )}
+              <div className="movie-modal-copy">
+                <p className="eyebrow">{detailMovie.category || "Title"}</p>
+                <h2>{detailMovie.title}</h2>
+                <div className="movie-modal-meta">
+                  <span className="pill">Release: {detailMovie.releaseDate}</span>
+                  {detailMovie.rating > 0 && (
+                    <span className="pill rating-pill">★ {detailMovie.rating.toFixed(1)}</span>
+                  )}
+                  {detailMovie.languageLabel && <span className="pill">{detailMovie.languageLabel}</span>}
+                </div>
+                <p className="movie-modal-story">{detailMovie.detailSummary}</p>
+
+                {detailMovie.nextEpisode && (
+                  <div className="next-episode">
+                    <p className="tiny">
+                      <strong>Next ep:</strong> {detailMovie.nextEpisode.name}
+                    </p>
+                    <p className="tiny muted">
+                      S{detailMovie.nextEpisode.seasonNumber}E{detailMovie.nextEpisode.episodeNumber} • {detailMovie.nextEpisode.airDate}
+                    </p>
+                  </div>
+                )}
+
+                {detailMovie.nextPart && (
+                  <div className="next-episode">
+                    <p className="tiny">
+                      <strong>Next part:</strong> {detailMovie.nextPart.title}
+                    </p>
+                    {detailMovie.nextPart.airDate && (
+                      <p className="tiny muted">Release: {detailMovie.nextPart.airDate}</p>
+                    )}
+                  </div>
+                )}
+
+                <div className="movie-modal-actions">
+                  <button
+                    type="button"
+                    className={`heart ${detailMovie.isFavorite ? "active" : ""}`}
+                    onClick={() => handleToggleFavorite(detailMovie.id, detailMovie.isFavorite)}
+                  >
+                    {detailMovie.isFavorite ? "♥ Favorite" : "♡ Favorite"}
+                  </button>
+                  <button type="button" className="ghost" onClick={() => handleSyncOne(detailMovie)}>
+                    Refresh TMDB
+                  </button>
+                  <button type="button" className="ghost danger" onClick={() => handleDelete(detailMovie.id)}>
+                    Remove
+                  </button>
+                </div>
+
+                <div className="status-row movie-modal-status-row">
+                  {TRACKING_STATUSES.map((st) => (
+                    <button
+                      key={st}
+                      type="button"
+                      className={st === detailMovie.status ? "chip active" : "chip"}
+                      onClick={() => handleStatusChange(detailMovie.id, st)}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

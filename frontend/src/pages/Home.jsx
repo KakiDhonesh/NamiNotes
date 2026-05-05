@@ -19,17 +19,6 @@ function getDaysUntil(date) {
   return Math.ceil((target - now) / (1000 * 60 * 60 * 24));
 }
 
-function getReminderLabel(daysUntil) {
-  if (daysUntil <= 0) return "Releasing now";
-  if (daysUntil === 1) return "Releases tomorrow";
-  return `Releases in ${daysUntil} days`;
-}
-
-function toHighQualityTmdbImage(url) {
-  if (!url) return url;
-  return url.replace("/w200", "/w780");
-}
-
 function extractPartNumber(title) {
   const normalized = title.toLowerCase();
   const wordMap = {
@@ -116,7 +105,7 @@ export default function Home() {
       return false;
     });
 
-    return filtered.slice(0, 10);
+    return filtered;
   }, [movies]);
 
   const favorites = useMemo(() => {
@@ -133,55 +122,6 @@ export default function Home() {
     return movies.filter((m) => m.status === "Completed");
   }, [movies]);
 
-  const upcomingReminders = useMemo(() => {
-    const reminders = movies
-      .map((movie) => {
-        const nextPartDate = toDateOrNull(movie?.nextPart?.airDate);
-        const nextEpisodeDate = toDateOrNull(movie?.nextEpisode?.airDate);
-        const releaseDate = nextPartDate || nextEpisodeDate;
-        if (!releaseDate) return null;
-
-        const daysUntil = getDaysUntil(releaseDate);
-        if (daysUntil < 0 || daysUntil > RELEASE_REMINDER_WINDOW_DAYS) {
-          return null;
-        }
-
-        const releaseType = nextPartDate ? "Next movie part" : "Next episode";
-        const releaseTitle = nextPartDate
-          ? movie?.nextPart?.title
-          : movie?.nextEpisode?.name;
-
-        return {
-          id: movie.id,
-          movieTitle: movie.title,
-          poster: movie.poster,
-          releaseDate: releaseDate.toISOString().slice(0, 10),
-          releaseType,
-          releaseTitle,
-          label: getReminderLabel(daysUntil),
-          daysUntil,
-          summary: movie.overview || "Story summary not available yet.",
-          partNumber: extractPartNumber(movie.title),
-          isNextPart: !!nextPartDate,
-        };
-      })
-      .filter(Boolean);
-
-    // Remove duplicate parts: keep only the latest part waiting for the same next release
-    const seen = new Map();
-    const filtered = reminders.filter((reminder) => {
-      const key = `${reminder.isNextPart ? "movie" : "episode"}-${reminder.releaseTitle}`;
-      const existing = seen.get(key);
-      if (!existing || reminder.partNumber > existing.partNumber) {
-        seen.set(key, reminder);
-        return true;
-      }
-      return false;
-    });
-
-    return filtered.sort((a, b) => a.daysUntil - b.daysUntil);
-  }, [movies]);
-
   const recentSlides = useMemo(() => {
     const seen = new Set();
     return recentUpdates
@@ -191,28 +131,18 @@ export default function Home() {
         seen.add(key);
         return true;
       })
-      .map((item) => ({
-        ...item,
-        poster: toHighQualityTmdbImage(item.poster),
-        backdrop: item.backdrop || toHighQualityTmdbImage(item.poster),
-      }));
-  }, [recentUpdates]);
+      .map((item) => item)
+      .sort((a, b) => {
+        const aDate = toDateOrNull(a?.nextPart?.airDate || a?.nextEpisode?.airDate);
+        const bDate = toDateOrNull(b?.nextPart?.airDate || b?.nextEpisode?.airDate);
 
-  const upcomingSlides = useMemo(() => {
-    return upcomingReminders.map((item) => ({
-      id: `upcoming-${item.id}`,
-      title: item.movieTitle,
-      category: item.releaseType,
-      poster: toHighQualityTmdbImage(item.poster),
-      backdrop: item.backdrop || toHighQualityTmdbImage(item.poster),
-      overview: `${item.label}. ${item.summary}`,
-      releaseLabel: item.label,
-      releaseDate: item.releaseDate,
-      nextPart: item.releaseTitle ? { title: item.releaseTitle, airDate: item.releaseDate } : null,
-      rating: 0,
-      isFavorite: false,
-    }));
-  }, [upcomingReminders]);
+        if (!aDate && !bDate) return 0;
+        if (!aDate) return 1;
+        if (!bDate) return -1;
+
+        return aDate - bDate;
+      });
+  }, [recentUpdates]);
 
   if (loading) return <div className="app-shell"><p className="muted">Loading...</p></div>;
 
@@ -237,51 +167,21 @@ export default function Home() {
                 <h2>What's new</h2>
               </div>
               <p className="muted">
-                {recentUpdates.length} title{recentUpdates.length !== 1 ? "s" : ""}
+                {recentSlides.length} title{recentSlides.length !== 1 ? "s" : ""}
               </p>
             </div>
-            <Slideshow items={recentSlides} />
-          </section>
-        )}
-
-        {upcomingSlides.length > 0 && (
-          <section className="slideshow-section">
-            <div className="section-header">
-              <div>
-                <p className="eyebrow">Upcoming releases</p>
-                <h2>Next up</h2>
-              </div>
-              <p className="muted">
-                {upcomingSlides.length} reminder{upcomingSlides.length !== 1 ? "s" : ""}
-              </p>
-            </div>
-            <Slideshow items={upcomingSlides} />
-          </section>
-        )}
-
-        {upcomingReminders.length > 0 && (
-          <section className="panel">
-            <div className="panel-head">
-              <p className="eyebrow">Release reminders</p>
-              <h2>Coming soon</h2>
-            </div>
-            <div className="reminder-list">
-              {upcomingReminders.slice(0, 6).map((item) => (
-                <article key={item.id} className="reminder-card">
-                  {item.poster && (
-                    <img src={item.poster} alt={item.movieTitle} className="reminder-poster" />
-                  )}
-                  <div className="reminder-content">
-                    <p className="tiny muted">{item.releaseType}</p>
-                    <h4>{item.movieTitle}</h4>
-                    <p className="tiny">{item.releaseTitle}</p>
-                    <p className="pill status watching">{item.label}</p>
-                    <p className="tiny muted">Date: {item.releaseDate}</p>
-                    <p className="muted">{item.summary.substring(0, 130)}...</p>
-                  </div>
-                </article>
-              ))}
-            </div>
+            <Slideshow
+              items={recentSlides.map((item) => ({
+                ...item,
+                category: item.category || item.mediaType || "Title",
+                releaseLabel:
+                  item.nextPart?.airDate || item.nextEpisode?.airDate
+                    ? `Release: ${item.nextPart?.airDate || item.nextEpisode?.airDate}`
+                    : "Release date not available",
+                overview: (item.overview || "Story summary not available yet.").substring(0, 160),
+                backdrop: item.backdrop || item.poster,
+              }))}
+            />
           </section>
         )}
 

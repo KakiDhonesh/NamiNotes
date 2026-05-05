@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
   onSnapshot,
   query,
+  getDocs,
   serverTimestamp,
+  setDoc,
   updateDoc,
   where,
 } from "firebase/firestore";
@@ -37,6 +38,19 @@ const getDaysUntil = (date) => {
   return Math.ceil((target - now) / (1000 * 60 * 60 * 24));
 };
 
+const getMovieDedupKey = (movie) => {
+  if (!movie) return null;
+
+  const mediaType = movie.mediaType || "movie";
+  const tmdbId = movie.tmdbId || null;
+
+  if (tmdbId) {
+    return `${mediaType}:${tmdbId}`;
+  }
+
+  return `${mediaType}:${movie.title || movie.id}`;
+};
+
 // Provides realtime watched media data for the signed-in user
 export function useMovies(userId) {
   const [movies, setMovies] = useState([]);
@@ -61,7 +75,7 @@ export function useMovies(userId) {
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const docs = snap.docs
+        const orderedDocs = snap.docs
           .map((d) => ({ id: d.id, ...d.data() }))
           .sort((a, b) => {
             const bTime =
@@ -76,7 +90,35 @@ export function useMovies(userId) {
               0;
             return bTime - aTime;
           });
-        setMovies(docs);
+
+        const seen = new Map();
+        const dedupedMovies = [];
+        const duplicateIds = [];
+
+        for (const movie of orderedDocs) {
+          const dedupKey = getMovieDedupKey(movie);
+          if (!dedupKey) {
+            dedupedMovies.push(movie);
+            continue;
+          }
+
+          const existing = seen.get(dedupKey);
+          if (!existing) {
+            seen.set(dedupKey, movie.id);
+            dedupedMovies.push(movie);
+            continue;
+          }
+
+          duplicateIds.push(movie.id);
+        }
+
+        if (duplicateIds.length > 0) {
+          Promise.all(
+            duplicateIds.map((id) => deleteDoc(doc(db, "movies", id)))
+          ).catch(() => {});
+        }
+
+        setMovies(dedupedMovies);
         setLoading(false);
       },
       (err) => {
@@ -93,19 +135,27 @@ export function useMovies(userId) {
       async (payload) => {
         try {
           if (!userId) throw new Error("No user");
+          if (!payload?.tmdbId) {
+            throw new Error("Missing TMDB id.");
+          }
 
-          // Check for duplicate
-          const duplicate = movies.find(
-            (m) => m.tmdbId === payload.tmdbId && m.mediaType === payload.mediaType
+          const mediaType = payload.mediaType || "movie";
+          const movieId = `${userId}_${mediaType}_${payload.tmdbId}`;
+          const movieRef = doc(db, "movies", movieId);
+          const existingMoviesQuery = query(
+            collection(db, "movies"),
+            where("userId", "==", userId),
+            where("tmdbId", "==", payload.tmdbId),
+            where("mediaType", "==", mediaType)
           );
-          if (duplicate) {
-            throw new Error(
-              `"${payload.title}" is already in your tracker.`
-            );
+          const existingMoviesSnapshot = await getDocs(existingMoviesQuery);
+
+          if (!existingMoviesSnapshot.empty) {
+            throw new Error(`"${payload.title}" is already in your tracker.`);
           }
 
           const tmdbSnapshot = await getTrackingSnapshot(
-            payload.mediaType || "movie",
+            mediaType,
             payload.tmdbId
           );
 
@@ -120,15 +170,14 @@ export function useMovies(userId) {
               daysUntil <= UPCOMING_WINDOW_DAYS
           );
 
-          const moviesRef = collection(db, "movies");
-          await addDoc(moviesRef, {
+          await setDoc(movieRef, {
             title: payload.title,
             category: payload.category || "Movie",
             contentType: payload.contentType || "movie",
             language: payload.language || "",
             languageLabel: payload.languageLabel || "Unknown",
             tmdbId: payload.tmdbId || null,
-            mediaType: payload.mediaType || "movie",
+            mediaType,
             poster: payload.poster || "",
             backdrop: payload.backdrop || "",
             overview: payload.overview || "",
@@ -152,7 +201,7 @@ export function useMovies(userId) {
           throw err;
         }
       },
-    [userId, movies]
+    [userId]
   );
 
   const updateMovie = useMemo(
